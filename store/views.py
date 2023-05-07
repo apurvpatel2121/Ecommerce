@@ -35,16 +35,17 @@ def store(request, category_slug=None):
 
 def product_detail(request, category_slug, product_slug):
     product = Product.objects.filter(slug=product_slug).first()
+    context = {}
 
     # get the cart_id from session
     cart_id = _get_cart_id(request)
     product_in_user_cart = CartItem.objects.filter(
         cart__cart_id=cart_id, product=product).exists()
 
-    context = {
+    context.update({
         'product_detail': product,
-        'product_in_user_cart': product_in_user_cart,
-    }
+        # 'product_in_user_cart': product_in_user_cart,
+    })
     return render(request, "store/product_detail.html", context)
 
 def search(request):
