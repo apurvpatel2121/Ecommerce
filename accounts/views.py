@@ -9,14 +9,15 @@ from django.contrib.auth import login as login_auth, logout as logout_auth
 from django.contrib.auth import authenticate
 from django.contrib import messages
 
-
 from django.contrib.sites.shortcuts import get_current_site
 from django.template.loader import render_to_string
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from django.utils.encoding import force_bytes
 from django.contrib.auth.tokens import default_token_generator
 from django.core.mail import EmailMessage
-
+from carts.views import _get_cart_id
+from carts.models import Cart,CartItem
+import requests
 # Create your views here.
 
 
@@ -79,13 +80,65 @@ def login(request):
         password = request.POST['password']
         user = authenticate(request, email=email, password=password)
         if user is not None:
+            #get all items before login through session and assign this user to those items
+            try:
+                cart= Cart.objects.get(cart_id=_get_cart_id(request))
+                if CartItem.objects.filter(cart=cart,is_active=True).exists():
+                    cart_items = CartItem.objects.filter(cart=cart,is_active=True)
+
+                    new_variations = []
+                    new_vr_id = []
+                    for item in cart_items:
+                        variations = item.variations.all()
+                        new_variations.append(list(variations))
+                        new_vr_id.append(item.id)
+
+                    print("new variations: ",new_variations)
+                    print("new vr id: ",new_vr_id)
+                    #existing variation already assigned to user
+                    cart_items = CartItem.objects.filter(user=user,is_active=True)
+                    existing_variation = []
+                    id = []
+                    for item in cart_items:
+                        variations = item.variations.all()
+                        existing_variation.append(list(variations))
+                        id.append(item.id)
+
+                    print("existing variations: ",existing_variation)
+                    for product_variation in new_variations:
+                        if product_variation in existing_variation:
+                            #item which we are checking from session
+                            new_index = new_variations.index(product_variation)
+                            new_id = new_vr_id[new_index]
+                            i = CartItem.objects.get(id=new_id)
+
+                            index = existing_variation.index(product_variation)
+                            item_id = id[index]
+                            item = CartItem.objects.get(id=item_id)
+                            item.quantity += i.quantity
+                            item.save()
+                            # delete that variation which is exists in this if condition (form database delete this cart_item if exists with same variation in user cart_items
+                            i.delete()
+                        else:
+                            cart_items = CartItem.objects.filter(cart=cart)
+                            for cart_item in cart_items:
+                                cart_item.user = user
+                                cart_item.save()
+
+            except:
+                pass
             login_auth(request, user)
             messages.success(request, "Login Succesful")
-            return redirect("/")
+
+            url = request.META.get("HTTP_REFERER")
+            try:
+                query = requests.utils.urlparse(url).query
+                return redirect(query.split("=")[1])
+            except:
+                return redirect("/")
         else:
             messages.error(request, "Please check email and password!")
     return render(request, 'accounts/login.html')
-
 
 @login_required(login_url="login")
 def logout(request):

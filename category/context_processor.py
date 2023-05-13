@@ -7,10 +7,12 @@ def menu_list(request):
 
 
 def total_cart_items(request):
-    total_cart_items=0
+    total_cart_items = 0
     try:
-        cart = Cart.objects.get(cart_id=_get_cart_id(request))
-        cart_items = cart.cart_products.all()
+        if request.user.is_authenticated:
+            cart_items = CartItem.objects.filter(user=request.user)
+        else:
+            cart_items = CartItem.objects.filter(cart__cart_id=_get_cart_id(request))
         for cart_item in cart_items:
             total_cart_items += cart_item.quantity
 
