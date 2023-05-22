@@ -1,6 +1,6 @@
 from django.shortcuts import render,redirect
 from carts.models import CartItem
-from orders.models import Order,Payment
+from orders.models import Order,Payment,OrderProduct
 from orders.forms import OrderForm
 # Create your views here.
 import datetime
@@ -21,6 +21,30 @@ def payments(request):
     order.payment = payment
     order.is_ordered = True
     order.save()
+
+    #savig cart items to orderProduct table 
+    cart_items = CartItem.objects.filter(user=request.user)
+    for item in cart_items:
+        orderProduct = OrderProduct()
+        orderProduct.order_id = order.id
+        orderProduct.payment = payment
+        orderProduct.user_id = request.user.id
+        orderProduct.product_id = item.product_id
+        orderProduct.quantity = item.quantity
+        orderProduct.product_price = item.product.price
+        orderProduct.orderd = True
+        orderProduct.save()
+        for variation in item.variations.all():
+            orderProduct.variation.add(variation)
+
+        #reduce the quantity of products in stock
+        #reduce()
+
+    #send order received email to customer
+    # email.send()
+
+    #delete cart items
+    cart_items = CartItem.objects.filter(user=request.user).delete()
 
     return render(request,'orders/payments.html')
 
