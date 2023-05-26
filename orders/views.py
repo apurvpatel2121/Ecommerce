@@ -1,6 +1,7 @@
 from django.shortcuts import render,redirect
 from carts.models import CartItem
 from orders.models import Order,Payment,OrderProduct
+from django.http import JsonResponse
 from orders.forms import OrderForm
 # Create your views here.
 import datetime
@@ -44,9 +45,13 @@ def payments(request):
     # email.send()
 
     #delete cart items
-    cart_items = CartItem.objects.filter(user=request.user).delete()
+    # cart_items.delete()
+    data = {
+        'order_number':order.order_number,
+        'transID':payment.payment_id,
+    }
 
-    return render(request,'orders/payments.html')
+    return JsonResponse(data)
 
 
 def place_order(request):
@@ -83,14 +88,14 @@ def place_order(request):
             data.tax = tax
             data.order_total = total + tax
             data.ip = request.META.get('REMOTE_ADDR')
-            data.save() #without this one id will be none (i.e. 20230519None)
+            data.save() #we need full id while saving order_number field / so without saving object id will be none at last (i.e. 20230519None)
 
             yr = int(datetime.date.today().strftime('%Y'))
             dt = int(datetime.date.today().strftime('%d'))
             mt = int(datetime.date.today().strftime('%m'))
             d = datetime.date(yr,mt,dt)
             current_date = d.strftime('%Y%m%d')
-            order_number = current_date + str(data.id)
+            order_number = current_date + str(data.id) # 20230519+01
             data.order_number = order_number
             data.save()
             
@@ -107,3 +112,27 @@ def place_order(request):
             return render(request,'orders/payments.html',context)
         
     return redirect("/")
+
+
+
+def order_complete(request):
+    order_number = request.GET.get('order_number')
+    transID = request.GET.get('payment_id')
+
+    try:
+        order = Order.objects.get(order_number=order_number,is_ordered=True)
+        ordered_products = OrderProduct.objects.filter(order_id=order.id)
+        sub_total = 0
+        for i in ordered_products:
+            sub_total += i.product_price * i.quantity
+        payment = Payment.objects.get(payment_id=transID)
+
+        context = {
+            'order': order,
+            'ordered_products': ordered_products,
+            'payment': payment,
+            'subtotal': sub_total,
+        }
+        return render(request, 'orders/order_complete.html', context)
+    except:
+        return redirect("home")
