@@ -4,7 +4,7 @@ from category.models import Category
 from carts.models import Cart, CartItem
 from carts.views import _get_cart_id
 from django.core.paginator import Paginator
-from django.db.models import Q
+from django.db.models import Q,Avg,Count
 from orders.models import OrderProduct
 # Create your views here.
 
@@ -43,16 +43,21 @@ def product_detail(request, category_slug, product_slug):
     product_in_user_cart = CartItem.objects.filter(
         cart__cart_id=cart_id, product=product).exists()
 
-    
+    orderproduct = False
     if request.user.is_authenticated:
         orderproduct = OrderProduct.objects.filter(user=request.user, product_id=product.id).exists()
 
     reviews = ReviewRating.objects.filter(product_id=product.id, status=True)
 
+    avg_review = reviews.aggregate(average_review=Avg("rating"))
+    total_review = reviews.aggregate(total_reviews=Count("id"))
+
     context.update({
         'product_detail': product,
         'orderproduct': orderproduct,
         'reviews': reviews,
+        'avg_review': avg_review['average_review'],
+        'total_review': total_review['total_reviews'],
         # 'product_in_user_cart': product_in_user_cart,
     })
     return render(request, "store/product_detail.html", context)
