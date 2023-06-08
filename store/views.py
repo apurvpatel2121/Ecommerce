@@ -1,5 +1,5 @@
 from django.shortcuts import render, redirect
-from store.models import Product
+from store.models import Product,ProductGallery
 from category.models import Category
 from carts.models import Cart, CartItem
 from carts.views import _get_cart_id
@@ -51,10 +51,13 @@ def product_detail(request, category_slug, product_slug):
 
     avg_review = reviews.aggregate(average_review=Avg("rating"))
     total_review = reviews.aggregate(total_reviews=Count("id"))
+    
+    product_gallery = ProductGallery.objects.filter(product_id=product.id)
 
     context.update({
         'product_detail': product,
         'orderproduct': orderproduct,
+        'product_gallery': product_gallery,
         'reviews': reviews,
         'avg_review': avg_review['average_review'],
         'total_review': total_review['total_reviews'],
@@ -97,3 +100,4 @@ def submit_review(request, product_id):
                 data.save()
                 messages.success(request, 'Thank you! Your review has been submitted.')
                 return redirect(url)
+            

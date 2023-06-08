@@ -74,6 +74,7 @@ def place_order(request):
         if form.is_valid():
             
             data = Order()
+            data.user_id = request.user.id
             data.first_name = form.cleaned_data['first_name']
             data.last_name = form.cleaned_data['last_name']
             data.phone = form.cleaned_data['phone']
